@@ -16,6 +16,7 @@ type Handlers = {
 export function useKeyboardShortcuts(h: Handlers) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (document.querySelector('[role="dialog"]')) return;
       const target = e.target as HTMLElement;
       const tag = target?.tagName;
       const typing = tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable;

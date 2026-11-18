@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BookOpen, Columns3, Network, Workflow } from "lucide-react";
+import { BookOpen, Columns3, Command as CommandIcon, Network, Workflow } from "lucide-react";
+import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { DensityProvider, SkeletonStyles } from "./components/kian";
+import {
+  EASE_OUT_EXPO,
+  SPRING_SILK,
+  computeRtlTabDirection,
+} from "./motionPrimitives";
 import {
   type MainWorkspaceTab,
   resolveWorkspaceTabForView,
@@ -235,8 +241,23 @@ export default function App() {
     }
   }, [sidebarCollapsed]);
 
+  const prevWorkspaceTabRef = useRef<MainWorkspaceTab>(workspaceTab);
+  const [tabDirection, setTabDirection] = useState<-1 | 0 | 1>(0);
+  const reducedMotion = useReducedMotion();
+
+  const applyWorkspaceTab = useCallback((nextTab: MainWorkspaceTab) => {
+    const dir = computeRtlTabDirection(
+      prevWorkspaceTabRef.current,
+      nextTab,
+      ["reader", "editorial", "visual_flow", "graph"] as const,
+    );
+    prevWorkspaceTabRef.current = nextTab;
+    setTabDirection(dir);
+    setWorkspaceTab(nextTab);
+  }, []);
+
   const selectWorkspaceTab = useCallback((tab: MainWorkspaceTab) => {
-    setWorkspaceTab(tab);
+    applyWorkspaceTab(tab);
     setShowStats(false);
     setShowDigest(false);
     if (tab === "graph") {
@@ -244,7 +265,7 @@ export default function App() {
     } else if (tab === "reader") {
       setActiveView(prev => (prev === "graph" ? "all" : prev));
     }
-  }, []);
+  }, [applyWorkspaceTab]);
 
   useEffect(() => { setupPWA(); }, []);
   useAutomationHeartbeat();
@@ -897,21 +918,28 @@ export default function App() {
               case "home":
                 return (
                   <div className="flex flex-col h-full min-h-0">
-                    <div dir="rtl" className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-gradient-to-l from-indigo-950 via-slate-900 to-emerald-950 text-white border-b border-indigo-500/30 overflow-x-auto">
-                      <button
-                        onClick={() => { setStudioInitialView("visual_flow"); setMobileStudioOpen(true); }}
-                        data-testid="mobile-top-open-visual-flow"
-                        className="shrink-0 px-2.5 py-1 rounded-lg bg-indigo-600 text-white text-[11px] font-bold inline-flex items-center gap-1 shadow-sm"
-                      >
-                        ⚡ بوم بصری اتوماسیون
-                      </button>
-                      <button
-                        onClick={() => { setStudioInitialView("workspace"); setMobileStudioOpen(true); }}
-                        data-testid="mobile-top-open-workspace"
-                        className="shrink-0 px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-[11px] font-bold inline-flex items-center gap-1 shadow-sm"
-                      >
-                        🎛️ میز کار تحریریه
-                      </button>
+                    <div dir="rtl" className="shrink-0 flex items-center justify-between gap-2 px-3 py-1.5 bg-[var(--background-subtle)] border-b border-[var(--border-subtle)] overflow-x-auto scrollbar-none">
+                      <span className="text-[11px] font-medium text-[var(--foreground-muted)] whitespace-nowrap">فضای تحریریه</span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => { setStudioInitialView("visual_flow"); setMobileStudioOpen(true); }}
+                          data-testid="mobile-top-open-visual-flow"
+                          className="shrink-0 h-7 px-2.5 rounded-[var(--radius-sm)] bg-[var(--card)] hover:bg-[var(--background-muted)] border border-[var(--border-subtle)] text-[var(--foreground)] text-[11px] font-medium inline-flex items-center gap-1.5 shadow-[var(--shadow-xs)] transition-colors"
+                        >
+                          <Workflow className="size-3 text-[var(--brand-600)]" />
+                          <span>بوم اتوماسیون</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setStudioInitialView("workspace"); setMobileStudioOpen(true); }}
+                          data-testid="mobile-top-open-workspace"
+                          className="shrink-0 h-7 px-2.5 rounded-[var(--radius-sm)] bg-[var(--brand-600)] text-white text-[11px] font-medium inline-flex items-center gap-1.5 shadow-[var(--shadow-xs)] transition-colors"
+                        >
+                          <Columns3 className="size-3" />
+                          <span>میز تحریریه</span>
+                        </button>
+                      </div>
                     </div>
                     <div className="flex-1 min-h-0">
                       <HomeScreen
@@ -1182,25 +1210,25 @@ export default function App() {
     <DensityProvider />
     <SkeletonStyles />
     <Toaster position="top-center" dir="rtl" theme={theme} richColors closeButton />
-    <div dir="rtl" lang="fa" className="size-full flex bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden relative">
-      <div className="md:hidden fixed top-0 right-0 left-0 z-30 flex items-center gap-2 px-3 h-12 bg-white/90 dark:bg-slate-950/90 backdrop-blur border-b border-slate-200 dark:border-slate-800">
-        <button onClick={() => setMobileDrawer(true)} className="p-2 -mr-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="منو">
+    <div dir="rtl" lang="fa" className="size-full flex bg-[var(--background)] text-[var(--foreground)] overflow-hidden relative">
+      <div className="md:hidden fixed top-0 right-0 left-0 z-30 flex items-center gap-2 px-3 h-12 bg-[var(--background-elevated)]/90 backdrop-blur-md border-b border-[var(--border-subtle)]">
+        <button onClick={() => setMobileDrawer(true)} className="p-2 -mr-2 rounded-[var(--radius-md)] hover:bg-[var(--background-muted)] transition-colors" aria-label="منو">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
         </button>
-        <div className="text-sm truncate flex-1">{title || 'flow'}</div>
-        <button onClick={() => loadAll(selectedFeed ? { feedId: selectedFeed } : {})} disabled={loading} className="p-2 -ml-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50" aria-label="بروزرسانی">
+        <div className="text-sm font-semibold truncate flex-1">{title || 'کیان'}</div>
+        <button onClick={() => loadAll(selectedFeed ? { feedId: selectedFeed } : {})} disabled={loading} className="p-2 -ml-2 rounded-[var(--radius-md)] hover:bg-[var(--background-muted)] disabled:opacity-50 transition-colors" aria-label="بروزرسانی">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className={loading ? 'animate-spin' : ''}><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         </button>
       </div>
       {mobileDrawer && (
-        <div className="md:hidden fixed inset-0 z-40 bg-black/50" onClick={closeMobileDrawer} />
+        <div className="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px]" onClick={closeMobileDrawer} />
       )}
       <div className={`md:relative md:translate-x-0 fixed top-0 right-0 bottom-0 z-40 transition-transform md:transition-none ${mobileDrawer ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`} onClick={(e) => { if ((e.target as HTMLElement).closest('button,a')) closeMobileDrawer(); }}>
       <Sidebar
         activeView={activeView}
         setActiveView={(v) => {
           setActiveView(v);
-          setWorkspaceTab(resolveWorkspaceTabForView(v));
+          applyWorkspaceTab(resolveWorkspaceTabForView(v));
         }}
         selectedFeed={selectedFeed}
         setSelectedFeed={setSelectedFeed}
@@ -1245,163 +1273,211 @@ export default function App() {
       />
       </div>
       {error && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-200 px-4 py-2 rounded-lg text-sm z-20">
+        <div className="absolute top-2.5 left-1/2 -translate-x-1/2 bg-[var(--card)] text-[var(--foreground)] border border-[var(--border-strong)] shadow-[var(--shadow-md)] px-4 py-2 rounded-[var(--radius-md)] text-xs font-medium z-20">
           {error}
         </div>
       )}
       <div className="flex-1 flex flex-col min-w-0 pt-12 md:pt-0 pb-14 md:pb-0">
-        {/* Main Workspace Tab Switcher — switches cleanly between Reader, Editorial Desk, Visual Flow Studio, and GraphView */}
-        <div className="shrink-0 flex items-center justify-between gap-3 px-3 py-1.5 bg-[var(--background-subtle)] border-b border-[var(--border-subtle)]">
-          <div
-            role="tablist"
-            aria-label="تب‌های فضای کاری اصلی"
-            className="inline-flex items-center gap-1 p-1 rounded-[var(--radius-md)] bg-[var(--background-muted)] overflow-x-auto scrollbar-none max-w-full"
-          >
-            {[
-              { id: "reader" as MainWorkspaceTab, label: "خواندن و رصد", icon: BookOpen, testId: "workspace-tab-reader" },
-              { id: "editorial" as MainWorkspaceTab, label: "میز کار تحریریه", icon: Columns3, testId: "workspace-tab-editorial" },
-              { id: "visual_flow" as MainWorkspaceTab, label: "بوم بصری اتوماسیون", icon: Workflow, testId: "workspace-tab-visual-flow" },
-              { id: "graph" as MainWorkspaceTab, label: "نقشهٔ رسانه‌ای (گراف)", icon: Network, testId: "workspace-tab-graph" },
-            ].map(tab => {
-              const Icon = tab.icon;
-              const isActive = workspaceTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={isActive}
-                  data-testid={tab.testId}
-                  onClick={() => selectWorkspaceTab(tab.id)}
-                  className={`h-7 px-3 rounded-[var(--radius-sm)] text-xs inline-flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                    isActive
-                      ? "bg-[var(--card)] text-[var(--foreground)] font-semibold shadow-[var(--shadow-xs)] border border-[var(--border-subtle)]"
-                      : "text-[var(--foreground-muted)] hover:text-[var(--foreground)] font-medium"
-                  }`}
-                >
-                  <Icon className={`size-3.5 shrink-0 ${isActive ? "text-[var(--brand-600)]" : ""}`} />
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
+        {/* Main Workspace Tab Switcher — shared-layout gliding indicator across Reader, Editorial Desk, Visual Flow Studio, and GraphView */}
+        <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-2 bg-[var(--background-subtle)]/90 backdrop-blur-md border-b border-[var(--border-subtle)]">
+          <LayoutGroup id="main-workspace-tabs">
+            <div
+              role="tablist"
+              aria-label="تب‌های فضای کاری اصلی"
+              className="inline-flex items-center gap-1 p-1 rounded-[var(--radius-md)] bg-[var(--background-muted)] border border-[var(--border-subtle)] overflow-x-auto scrollbar-none max-w-full"
+            >
+              {[
+                { id: "reader" as MainWorkspaceTab, label: "خواندن و رصد", icon: BookOpen, testId: "workspace-tab-reader" },
+                { id: "editorial" as MainWorkspaceTab, label: "میز کار تحریریه", icon: Columns3, testId: "workspace-tab-editorial" },
+                { id: "visual_flow" as MainWorkspaceTab, label: "بوم بصری اتوماسیون", icon: Workflow, testId: "workspace-tab-visual-flow" },
+                { id: "graph" as MainWorkspaceTab, label: "نقشهٔ رسانه‌ای (گراف)", icon: Network, testId: "workspace-tab-graph" },
+              ].map(tab => {
+                const Icon = tab.icon;
+                const isActive = workspaceTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    data-testid={tab.testId}
+                    onClick={() => selectWorkspaceTab(tab.id)}
+                    className={`relative h-7 px-3 rounded-[var(--radius-sm)] text-xs inline-flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                      isActive
+                        ? "text-[var(--foreground)] font-semibold"
+                        : "text-[var(--foreground-muted)] hover:text-[var(--foreground)] font-medium"
+                    }`}
+                  >
+                    {isActive && (
+                      <motion.span
+                        layoutId="workspace-active-tab"
+                        transition={SPRING_SILK}
+                        className="absolute inset-0 rounded-[var(--radius-sm)] bg-[var(--card)] shadow-[var(--shadow-xs)] border border-[var(--border-subtle)]"
+                      />
+                    )}
+                    <Icon className={`relative z-10 size-3.5 shrink-0 transition-colors ${isActive ? "text-[var(--brand-600)]" : ""}`} />
+                    <span className="relative z-10">{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </LayoutGroup>
 
-          <div className="hidden lg:flex items-center gap-2 text-[11px] text-[var(--foreground-subtle)] shrink-0">
-            <span>۴۷+ منبع RSS فعال</span>
-            <span>·</span>
-            <span data-testid="ai-model-status" className="text-[var(--brand-600)] font-medium">هوش مصنوعی متصل ({activeAiModel})</span>
+          <div className="hidden lg:flex items-center gap-3 text-[11px] text-[var(--foreground-subtle)] shrink-0">
+            <span className="tabular-nums">۴۷+ منبع RSS فعال</span>
+            <span aria-hidden="true">·</span>
+            <span data-testid="ai-model-status" className="text-[var(--brand-600)] font-medium tabular-nums">
+              هوش مصنوعی متصل ({activeAiModel})
+            </span>
+            <span aria-hidden="true">·</span>
+            <button
+              type="button"
+              onClick={() => setPaletteOpen(true)}
+              aria-label="باز کردن پالت فرمان"
+              title="پالت فرمان (Ctrl+K)"
+              className="h-6 px-2 rounded-[var(--radius-sm)] bg-[var(--background-muted)] hover:bg-[var(--card)] border border-[var(--border-subtle)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <CommandIcon className="size-3" />
+              <span>پالت فرمان</span>
+              <kbd className="font-mono text-[10px] opacity-75">⌘K</kbd>
+            </button>
           </div>
         </div>
-      <div className="flex-1 flex min-w-0 min-h-0">
-      {workspaceTab === "editorial" ? (
-        <DesktopStudio
-          key="embedded-editorial"
-          articles={items}
-          initialView="workspace"
-          embedded
-          onClose={() => selectWorkspaceTab("reader")}
-        />
-      ) : workspaceTab === "visual_flow" ? (
-        <DesktopStudio
-          key="embedded-visual-flow"
-          articles={items}
-          initialView="visual_flow"
-          embedded
-          onClose={() => selectWorkspaceTab("reader")}
-        />
-      ) : showStats ? (
-        <MediaAnalyticsDashboard articles={items} savedIds={savedIds} onClose={() => setShowStats(false)} />
-      ) : showDigest ? (
-        <DailyDigest articles={items} onClose={() => setShowDigest(false)} onSelect={(id) => { setShowDigest(false); handleSelect(id); }} />
-      ) : workspaceTab === "graph" || activeView === "graph" ? (
-        <GraphView articles={items} loading={loading} onRefresh={() => loadAll()} />
-      ) : activeView === 'room' ? (
-        <MonitoringRoom
-          articles={items}
-          loading={loading}
-          onRefresh={() => loadAll()}
-          onSelect={(a) => handleSelect(a.id)}
-          onSendToNewspack={(text) => {
-            try { navigator.clipboard?.writeText(text); } catch { /* ignore */ }
-            setActiveView('newspack');
-            setSelectedId(null);
-          }}
-        />
-      ) : activeView === 'social' ? (
-        <SocialListening onOpenStudio={() => selectWorkspaceTab("editorial")} />
-      ) : activeView === 'watch' ? (
-        <WatchView />
-      ) : activeView === 'newspack' ? (
-        <NewspackBuilder userId="app" />
-      ) : activeView === 'international' ? (
-        <>
-          <div className={`${showArticleView ? 'hidden md:flex' : 'flex'} flex-1 min-w-0`}>
-            <InternationalView
-              onSelectArticle={(a) => handleSelect(a.id)}
-              selectedId={selectedId || undefined}
-              onToggleStar={toggleStar}
-              onMarkAllRead={markAllRead}
-            />
-          </div>
-          <div className={`${showArticleView ? 'flex fixed md:relative inset-0 md:inset-auto z-20 md:z-auto bg-white dark:bg-slate-950' : 'hidden md:flex'} flex-1 min-w-0`}>
-            <ArticleView article={selected} onClose={() => setSelectedId(null)} toggleStar={toggleStar} toggleSave={toggleSave} isSaved={selected ? savedIds.has(selected.id) : false} onTagsChange={setArticleTags} related={related} duplicates={duplicates} onSelectRelated={handleSelect} onOpenTimeline={(topic) => { setTimelineTopic(topic); setTimelineOpen(true); }} />
-          </div>
-        </>
-      ) : (
-      <>
-      <div className={`${showArticleView ? 'hidden md:flex' : 'flex'} flex-1 min-w-0 min-h-0 flex-col relative`}>
-        <TopicFocusStyles scores={topicScores as any} mode={focusMode} active={activeTopicIds.length > 0} />
-        <TopicPctSync scores={topicScores as any} active={activeTopicIds.length > 0} />
-        <TopicHighlightSync scores={topicScores as any} active={activeTopicIds.length > 0} />
-        <TopicMinimap articles={filtered} scores={topicScores as any} active={activeTopicIds.length > 0} />
-        <TopicJumpCounter articles={filtered} scores={topicScores as any} active={activeTopicIds.length > 0} />
-        <ArticleList
-          subHeader={
-            <TopicFocusBar
-              articles={items}
-              activeIds={activeTopicIds}
-              onToggle={toggleTopic}
-              onClear={clearTopics}
-              mode={focusMode}
-              onModeChange={setFocusMode}
-              combinator={combinator}
-              onCombinatorChange={setCombinator}
-              customTopics={customTopics}
-              onAddCustom={() => { setBuilderInitial(null); setBuilderOpen(true); }}
-              onEditCustom={(t) => { setBuilderInitial(t); setBuilderOpen(true); }}
-              smartActive={smartActive}
-              onSmartChange={setSmartActive}
-              muteWords={muteWords}
-              onMuteChange={setMuteWords}
-            />
-          }
-          articles={filtered}
-          selectedId={selectedId}
-          setSelectedId={handleSelect}
-          viewMode={viewMode}
-          setViewMode={setViewMode}
-          title={title}
-          toggleStar={toggleStar}
-          sortMode={sortMode}
-          setSortMode={setSortMode}
-          onRefresh={() => loadAll(selectedFeed ? { feedId: selectedFeed } : {})}
-          onMarkAllRead={markAllRead}
-          loading={loading}
-          translateAll={translateAll}
-          onToggleTranslateAll={toggleTranslateAll}
-          onTranslate={translateTitlesByIds}
-          translatingIds={translatingIds}
-        />
-      </div>
-      <div className={`${showArticleView ? 'flex fixed md:relative inset-0 md:inset-auto z-20 md:z-auto bg-white dark:bg-slate-950' : 'hidden md:flex'} flex-1 min-w-0 p-[0px] m-[0px]`}>
-        <ArticleView article={selected} onClose={() => setSelectedId(null)} toggleStar={toggleStar} toggleSave={toggleSave} isSaved={selected ? savedIds.has(selected.id) : false} onTagsChange={setArticleTags} related={related} duplicates={duplicates} onSelectRelated={handleSelect} onOpenTimeline={(topic) => { setTimelineTopic(topic); setTimelineOpen(true); }} />
-      </div>
-      </>
-      )}
+      <div className="flex-1 flex min-w-0 min-h-0 overflow-hidden">
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={
+              workspaceTab === "editorial"
+                ? "stage-editorial"
+                : workspaceTab === "visual_flow"
+                  ? "stage-visual-flow"
+                  : showStats
+                    ? "stage-stats"
+                    : showDigest
+                      ? "stage-digest"
+                      : workspaceTab === "graph" || activeView === "graph"
+                        ? "stage-graph"
+                        : activeView === "room" || activeView === "social" || activeView === "watch" || activeView === "newspack" || activeView === "international"
+                          ? `stage-${activeView}`
+                          : "stage-reader"
+            }
+            initial={reducedMotion ? { opacity: 0 } : { opacity: 0, x: (tabDirection || -1) * 16 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={reducedMotion ? { opacity: 0 } : { opacity: 0, x: (tabDirection || -1) * -12 }}
+            transition={{ duration: 0.2, ease: EASE_OUT_EXPO }}
+            className="flex-1 flex min-w-0 min-h-0"
+          >
+            {workspaceTab === "editorial" ? (
+              <DesktopStudio
+                key="embedded-editorial"
+                articles={items}
+                initialView="workspace"
+                embedded
+                onClose={() => selectWorkspaceTab("reader")}
+              />
+            ) : workspaceTab === "visual_flow" ? (
+              <DesktopStudio
+                key="embedded-visual-flow"
+                articles={items}
+                initialView="visual_flow"
+                embedded
+                onClose={() => selectWorkspaceTab("reader")}
+              />
+            ) : showStats ? (
+              <MediaAnalyticsDashboard articles={items} savedIds={savedIds} onClose={() => setShowStats(false)} />
+            ) : showDigest ? (
+              <DailyDigest articles={items} onClose={() => setShowDigest(false)} onSelect={(id) => { setShowDigest(false); handleSelect(id); }} />
+            ) : workspaceTab === "graph" || activeView === "graph" ? (
+              <GraphView articles={items} loading={loading} onRefresh={() => loadAll()} />
+            ) : activeView === 'room' ? (
+              <MonitoringRoom
+                articles={items}
+                loading={loading}
+                onRefresh={() => loadAll()}
+                onSelect={(a) => handleSelect(a.id)}
+                onSendToNewspack={(text) => {
+                  try { navigator.clipboard?.writeText(text); } catch { /* ignore */ }
+                  setActiveView('newspack');
+                  setSelectedId(null);
+                }}
+              />
+            ) : activeView === 'social' ? (
+              <SocialListening onOpenStudio={() => selectWorkspaceTab("editorial")} />
+            ) : activeView === 'watch' ? (
+              <WatchView />
+            ) : activeView === 'newspack' ? (
+              <NewspackBuilder userId="app" />
+            ) : activeView === 'international' ? (
+              <>
+                <div className={`${showArticleView ? 'hidden md:flex' : 'flex'} flex-1 min-w-0`}>
+                  <InternationalView
+                    onSelectArticle={(a) => handleSelect(a.id)}
+                    selectedId={selectedId || undefined}
+                    onToggleStar={toggleStar}
+                    onMarkAllRead={markAllRead}
+                  />
+                </div>
+                <div className={`${showArticleView ? 'flex fixed md:relative inset-0 md:inset-auto z-20 md:z-auto bg-[var(--background-elevated)]' : 'hidden md:flex'} shrink-0 min-w-0`}>
+                  <ArticleView article={selected} onClose={() => setSelectedId(null)} toggleStar={toggleStar} toggleSave={toggleSave} isSaved={selected ? savedIds.has(selected.id) : false} onTagsChange={setArticleTags} related={related} duplicates={duplicates} onSelectRelated={handleSelect} onOpenTimeline={(topic) => { setTimelineTopic(topic); setTimelineOpen(true); }} onOpenReadingMode={() => setReadingMode(true)} />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className={`${showArticleView ? 'hidden md:flex' : 'flex'} flex-1 min-w-0 min-h-0 flex-col relative`}>
+                  <TopicFocusStyles scores={topicScores as any} mode={focusMode} active={activeTopicIds.length > 0} />
+                  <TopicPctSync scores={topicScores as any} active={activeTopicIds.length > 0} />
+                  <TopicHighlightSync scores={topicScores as any} active={activeTopicIds.length > 0} />
+                  <TopicMinimap articles={filtered} scores={topicScores as any} active={activeTopicIds.length > 0} />
+                  <TopicJumpCounter articles={filtered} scores={topicScores as any} active={activeTopicIds.length > 0} />
+                  <ArticleList
+                    subHeader={
+                      <TopicFocusBar
+                        articles={items}
+                        activeIds={activeTopicIds}
+                        onToggle={toggleTopic}
+                        onClear={clearTopics}
+                        mode={focusMode}
+                        onModeChange={setFocusMode}
+                        combinator={combinator}
+                        onCombinatorChange={setCombinator}
+                        customTopics={customTopics}
+                        onAddCustom={() => { setBuilderInitial(null); setBuilderOpen(true); }}
+                        onEditCustom={(t) => { setBuilderInitial(t); setBuilderOpen(true); }}
+                        smartActive={smartActive}
+                        onSmartChange={setSmartActive}
+                        muteWords={muteWords}
+                        onMuteChange={setMuteWords}
+                      />
+                    }
+                    articles={filtered}
+                    selectedId={selectedId}
+                    setSelectedId={handleSelect}
+                    viewMode={viewMode}
+                    setViewMode={setViewMode}
+                    title={title}
+                    toggleStar={toggleStar}
+                    sortMode={sortMode}
+                    setSortMode={setSortMode}
+                    onRefresh={() => loadAll(selectedFeed ? { feedId: selectedFeed } : {})}
+                    onMarkAllRead={markAllRead}
+                    loading={loading}
+                    translateAll={translateAll}
+                    onToggleTranslateAll={toggleTranslateAll}
+                    onTranslate={translateTitlesByIds}
+                    translatingIds={translatingIds}
+                  />
+                </div>
+                <div className={`${showArticleView ? 'flex fixed md:relative inset-0 md:inset-auto z-20 md:z-auto bg-[var(--background-elevated)]' : 'hidden md:flex'} shrink-0 min-w-0 p-0 m-0`}>
+                  <ArticleView article={selected} onClose={() => setSelectedId(null)} toggleStar={toggleStar} toggleSave={toggleSave} isSaved={selected ? savedIds.has(selected.id) : false} onTagsChange={setArticleTags} related={related} duplicates={duplicates} onSelectRelated={handleSelect} onOpenTimeline={(topic) => { setTimelineTopic(topic); setTimelineOpen(true); }} onOpenReadingMode={() => setReadingMode(true)} />
+                </div>
+              </>
+            )}
+          </motion.div>
+        </AnimatePresence>
       </div>
       </div>
 
-      <nav className="md:hidden fixed bottom-0 right-0 left-0 z-30 grid grid-cols-5 bg-white/95 dark:bg-slate-950/95 backdrop-blur border-t border-slate-200 dark:border-slate-800 h-14">
+      <nav className="md:hidden fixed bottom-0 right-0 left-0 z-30 grid grid-cols-5 bg-[var(--background-elevated)]/95 backdrop-blur-md border-t border-[var(--border-subtle)] h-14">
         {[
           { id: 'all', label: 'همه', path: 'M3 12h18M3 6h18M3 18h18' },
           { id: 'unread', label: 'نخوانده', path: 'M12 2v20M2 12h20' },
@@ -1409,8 +1485,8 @@ export default function App() {
           { id: 'international', label: 'بین‌الملل', path: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20' },
           { id: 'graph', label: 'گراف', path: 'M4 4h4v4H4zm12 0h4v4h-4zM4 16h4v4H4zm12 0h4v4h-4zM8 6h8M8 18h8M6 8v8M18 8v8' },
         ].map(n => (
-          <button key={n.id} onClick={() => { setActiveView(n.id); setWorkspaceTab(resolveWorkspaceTabForView(n.id)); setSelectedId(null); }}
-            className={`flex flex-col items-center justify-center gap-0.5 text-[10px] ${activeView === n.id ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500'}`}>
+          <button key={n.id} onClick={() => { setActiveView(n.id); applyWorkspaceTab(resolveWorkspaceTabForView(n.id)); setSelectedId(null); }}
+            className={`flex flex-col items-center justify-center gap-0.5 text-[10px] transition-colors ${activeView === n.id ? 'text-[var(--brand-600)] font-semibold' : 'text-[var(--foreground-muted)]'}`}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={n.path}/></svg>
             {n.label}
           </button>
@@ -1423,9 +1499,23 @@ export default function App() {
         feeds={feeds}
         theme={theme}
         actions={{
-          setView: (v) => { setActiveView(v); setWorkspaceTab(resolveWorkspaceTabForView(v)); setSelectedId(null); setShowStats(false); setShowDigest(false); },
-          selectFeed: (id) => { setActiveView('feed'); setWorkspaceTab('reader'); setSelectedFeed(id); setSelectedId(null); },
-          selectArticle: (id) => { setWorkspaceTab('reader'); handleSelect(id); },
+          setView: (v) => {
+            if (v === "studio") {
+              selectWorkspaceTab("editorial");
+              return;
+            }
+            if (v === "visual-flow") {
+              selectWorkspaceTab("visual_flow");
+              return;
+            }
+            setActiveView(v);
+            applyWorkspaceTab(resolveWorkspaceTabForView(v));
+            setSelectedId(null);
+            setShowStats(false);
+            setShowDigest(false);
+          },
+          selectFeed: (id) => { setActiveView('feed'); applyWorkspaceTab('reader'); setSelectedFeed(id); setSelectedId(null); },
+          selectArticle: (id) => { applyWorkspaceTab('reader'); handleSelect(id); },
           refresh: () => loadAll(selectedFeed ? { feedId: selectedFeed } : {}),
           addFeed: () => setHubOpen(true),
           openSourceHub: () => setHubOpen(true),
@@ -1443,17 +1533,20 @@ export default function App() {
           toggleFocus: () => { if (selected) setReadingMode(true); },
         }}
       />
-      {readingMode && selected && (
-        <ReadingMode
-          article={selected}
-          onClose={() => setReadingMode(false)}
-          onToggleStar={toggleStar}
-          onToggleSave={toggleSave}
-          isSaved={savedIds.has(selected.id)}
-          onPrev={() => navigate(-1)}
-          onNext={() => navigate(1)}
-        />
-      )}
+      <AnimatePresence>
+        {readingMode && selected && (
+          <ReadingMode
+            key="reading-mode-modal"
+            article={selected}
+            onClose={() => setReadingMode(false)}
+            onToggleStar={toggleStar}
+            onToggleSave={toggleSave}
+            isSaved={savedIds.has(selected.id)}
+            onPrev={() => navigate(-1)}
+            onNext={() => navigate(1)}
+          />
+        )}
+      </AnimatePresence>
       <AddFeedDialog open={addOpen} onClose={() => setAddOpen(false)} onDone={() => loadAll()} />
       <SourceHub open={hubOpen} onClose={() => setHubOpen(false)} feeds={feeds} onChanged={() => loadAll()} />
       <SavedSearches open={savedSearchesOpen} onClose={() => setSavedSearchesOpen(false)} articles={items} feeds={feeds}

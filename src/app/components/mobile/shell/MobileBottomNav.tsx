@@ -1,6 +1,8 @@
 import { Home, Search, Bookmark, Globe2, User } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
+import { LayoutGroup, motion } from "motion/react";
 import { useHaptics } from "../hooks";
+import { SPRING_SILK, SPRING_SNAPPY } from "../../../motionPrimitives";
 
 export type MobileTab = "home" | "international" | "discover" | "saved" | "me";
 
@@ -8,12 +10,9 @@ type TabDef = {
   id: MobileTab;
   label: string;
   Icon: ComponentType<SVGProps<SVGSVGElement>>;
-  /** Center tab renders as a raised circular FAB. */
   center?: boolean;
 };
 
-/* Layout per ui-styles.css spec: home / notifications / [FAB] / stats / account.
-   Adapted to app domain: home / international / [discover-FAB] / saved / me. */
 const TABS: TabDef[] = [
   { id: "home",          label: "خانه",      Icon: Home },
   { id: "international", label: "بین‌الملل", Icon: Globe2 },
@@ -23,14 +22,15 @@ const TABS: TabDef[] = [
 ];
 
 export function MobileBottomNav({
-  active, onChange, badges,
+  active,
+  onChange,
+  badges,
 }: {
   active: MobileTab;
   onChange: (t: MobileTab) => void;
   badges?: Partial<Record<MobileTab, number>>;
 }) {
   const haptic = useHaptics();
-  const sides = TABS.filter((t) => !t.center);
   const center = TABS.find((t) => t.center)!;
 
   const press = (id: MobileTab) => {
@@ -38,13 +38,11 @@ export function MobileBottomNav({
     onChange(id);
   };
 
-  /* Bar geometry (matches spec 375×65 ratio, scales with viewport).
-     Notch is a downward concave arc cut into the top edge of the bar. */
   const W = 375;
-  const H = 65;
-  const BAR_TOP = 9;
+  const H = 64;
+  const BAR_TOP = 8;
   const CX = W / 2;
-  const NOTCH_R = 34; // half of 68px notch — slightly tighter than the 76 ellipse so FAB has breathing room
+  const NOTCH_R = 34;
 
   const barPath =
     `M 0 ${BAR_TOP} ` +
@@ -60,76 +58,80 @@ export function MobileBottomNav({
       style={{ paddingBottom: "var(--safe-bottom)" }}
       aria-label="پیمایش پایین"
     >
-      <div className="relative w-full" style={{ height: `${H}px` }}>
-        {/* Bar shape (white surface with concave notch on top) */}
-        <svg
-          className="absolute inset-0 w-full h-full kian-bottomnav-svg"
-          viewBox={`0 0 ${W} ${H}`}
-          preserveAspectRatio="none"
-          aria-hidden
-        >
-          <path d={barPath} fill="var(--card)" />
-        </svg>
+      <LayoutGroup id="mobile-bottom-nav-group">
+        <div className="relative w-full" style={{ height: `${H}px` }}>
+          <svg
+            className="absolute inset-0 w-full h-full kian-bottomnav-svg"
+            viewBox={`0 0 ${W} ${H}`}
+            preserveAspectRatio="none"
+            aria-hidden
+          >
+            <path d={barPath} fill="var(--card)" />
+          </svg>
 
-        {/* Side icons (2 left + 2 right) */}
-        <ul className="absolute left-0 right-0 grid grid-cols-5 h-full">
-          {TABS.map((t) => {
-            if (t.center) return <li key={t.id} aria-hidden />; // reserve center slot for FAB
-            const on = active === t.id;
-            const b = badges?.[t.id];
-            return (
-              <li key={t.id} className="flex items-end justify-center pb-2.5">
-                <button
-                  onClick={() => press(t.id)}
-                  aria-current={on ? "page" : undefined}
-                  aria-label={t.label}
-                  className="relative size-9 grid place-items-center tap press rounded-full"
-                >
-                  <t.Icon
-                    className={on
-                      ? "size-6 text-[var(--foreground)]"
-                      : "size-6 text-[var(--foreground-subtle)]"}
-                    strokeWidth={on ? 2.2 : 1.7}
-                  />
-                  {!!b && (
-                    <span
-                      className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 rounded-full
-                                 bg-[var(--brand-500)] text-white text-[9px] grid place-items-center font-bold tabular-nums"
-                    >
-                      {b > 99 ? "+۹۹" : b.toLocaleString("fa-IR")}
-                    </span>
-                  )}
-                  {on && (
-                    <span
-                      aria-hidden
-                      className="absolute -bottom-1.5 w-1 h-1 rounded-full bg-[var(--foreground)]"
+          <ul className="absolute left-0 right-0 grid grid-cols-5 h-full">
+            {TABS.map((t) => {
+              if (t.center) return <li key={t.id} aria-hidden />;
+              const on = active === t.id;
+              const b = badges?.[t.id];
+              return (
+                <li key={t.id} className="flex items-end justify-center pb-2">
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.88 }}
+                    transition={SPRING_SNAPPY}
+                    onClick={() => press(t.id)}
+                    aria-current={on ? "page" : undefined}
+                    aria-label={t.label}
+                    className="relative min-w-[44px] min-h-[44px] flex flex-col items-center justify-center gap-0.5 tap rounded-full"
+                  >
+                    <t.Icon
+                      className={
+                        on
+                          ? "size-5 text-[var(--foreground)]"
+                          : "size-5 text-[var(--foreground-subtle)]"
+                      }
+                      strokeWidth={on ? 2.2 : 1.75}
                     />
-                  )}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+                    <span
+                      className={`text-[10px] leading-none ${
+                        on ? "font-semibold text-[var(--foreground)]" : "text-[var(--foreground-subtle)]"
+                      }`}
+                    >
+                      {t.label}
+                    </span>
+                    {!!b && (
+                      <span className="absolute top-0.5 right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-[var(--brand-500)] text-white text-[9px] grid place-items-center font-bold tabular-nums">
+                        {b > 99 ? "+۹۹" : b.toLocaleString("fa-IR")}
+                      </span>
+                    )}
+                    {on && (
+                      <motion.span
+                        layoutId="mobile-nav-dot"
+                        transition={SPRING_SILK}
+                        aria-hidden
+                        className="absolute -bottom-0.5 w-1.5 h-1 rounded-full bg-[var(--brand-500)]"
+                      />
+                    )}
+                  </motion.button>
+                </li>
+              );
+            })}
+          </ul>
 
-        {/* Raised center FAB */}
-        <button
-          onClick={() => press(center.id)}
-          aria-current={active === center.id ? "page" : undefined}
-          aria-label={center.label}
-          className="absolute left-1/2 -translate-x-1/2 -top-1 size-[52px] rounded-full grid place-items-center bg-[var(--foreground)] text-[var(--card)] tap press kian-bottomnav-fab mx-[0px] my-[-15px]"
-        >
-          <center.Icon className="size-6" strokeWidth={2.4} />
-          {active === center.id && (
-            <span
-              aria-hidden
-              className="absolute -bottom-2.5 w-1 h-1 rounded-full bg-[var(--foreground)]"
-            />
-          )}
-        </button>
-
-        {/* Sentinel for sides count to satisfy lint (unused otherwise) */}
-        <span hidden aria-hidden>{sides.length}</span>
-      </div>
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.9 }}
+            transition={SPRING_SNAPPY}
+            onClick={() => press(center.id)}
+            aria-current={active === center.id ? "page" : undefined}
+            aria-label={center.label}
+            className="absolute left-1/2 -translate-x-1/2 -top-4 size-[52px] rounded-full grid place-items-center bg-[var(--foreground)] text-[var(--card)] tap kian-bottomnav-fab shadow-lg"
+          >
+            <center.Icon className="size-6" strokeWidth={2.3} />
+          </motion.button>
+        </div>
+      </LayoutGroup>
     </nav>
   );
 }
