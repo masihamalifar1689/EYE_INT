@@ -1,8 +1,9 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type ViteDevServer } from 'vite'
 import path from 'path'
+import os from 'os'
+import { pathToFileURL } from 'url'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { app as honoApp } from './supabase/functions/server/index.tsx'
 
 function figmaAssetResolver() {
   return {
@@ -16,13 +17,56 @@ function figmaAssetResolver() {
   }
 }
 
+type HonoLikeApp = {
+  fetch: (req: Request) => Promise<Response> | Response
+}
+
 function localApiMiddleware() {
-  const handle = async (req: any, res: any, next: any) => {
+  let devServer: ViteDevServer | null = null
+  let appPromise: Promise<HonoLikeApp> | null = null
+
+  const loadDevApp = async (): Promise<HonoLikeApp> => {
+    if (!devServer) {
+      throw new Error('Vite dev server not initialized')
+    }
+    const mod = await devServer.ssrLoadModule('/supabase/functions/server/index.tsx')
+    return (mod.app || mod.default) as HonoLikeApp
+  }
+
+  const loadPreviewApp = async (): Promise<HonoLikeApp> => {
+    const { build } = await import('esbuild')
+    const outfile = path.join(os.tmpdir(), `kian-hono-server-${process.pid}.mjs`)
+    await build({
+      entryPoints: [path.resolve(__dirname, 'supabase/functions/server/index.tsx')],
+      outfile,
+      bundle: true,
+      platform: 'node',
+      format: 'esm',
+      target: 'node20',
+      packages: 'external',
+      logLevel: 'silent',
+    })
+    const mod = await import(pathToFileURL(outfile).href)
+    return (mod.app || mod.default) as HonoLikeApp
+  }
+
+  const getApp = (mode: 'dev' | 'preview'): Promise<HonoLikeApp> => {
+    if (!appPromise) {
+      appPromise = (mode === 'dev' ? loadDevApp() : loadPreviewApp()).catch((err) => {
+        appPromise = null
+        throw err
+      })
+    }
+    return appPromise
+  }
+
+  const createHandler = (mode: 'dev' | 'preview') => async (req: any, res: any, next: any) => {
     const urlPath = req.url || ''
     if (!urlPath.startsWith('/make-server-a2e7e82a')) {
       return next()
     }
     try {
+      const honoApp = await getApp(mode)
       const protocol = req.headers['x-forwarded-proto'] || 'http'
       const host = req.headers.host || 'localhost:3000'
       const fullUrl = `${protocol}://${host}${urlPath}`
@@ -72,11 +116,17 @@ function localApiMiddleware() {
 
   return {
     name: 'local-hono-api-middleware',
-    configureServer(server: any) {
-      server.middlewares.use(handle)
+    configureServer(server: ViteDevServer) {
+      devServer = server
+      server.middlewares.use(createHandler('dev'))
+      server.httpServer?.once('listening', () => {
+        setTimeout(() => {
+          getApp('dev').catch(() => {})
+        }, 50)
+      })
     },
     configurePreviewServer(server: any) {
-      server.middlewares.use(handle)
+      server.middlewares.use(createHandler('preview'))
     },
   }
 }
@@ -96,11 +146,17 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
-
+  optimizeDeps: {
+    entries: ['index.html', 'src/main.tsx'],
+  },
   server: {
     host: '0.0.0.0',
     port: 3000,
     allowedHosts: true,
+    hmr: process.env.DISABLE_HMR === 'true' ? false : undefined,
+    watch: {
+      ignored: ['**/.data/**', '**/.playwright-cli/**', '**/.lint-dist/**', '**/dist/**'],
+    },
   },
   preview: {
     host: '0.0.0.0',
@@ -111,4 +167,3 @@ export default defineConfig({
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
 })
-
